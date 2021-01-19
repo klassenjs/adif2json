@@ -65,3 +65,16 @@ cat fix_usa.adif | ./adif2json | jq '[.[] | select(has("COUNTRY")|not) | .CALL |
 
 ### List confirmed QSOs without a state (How did this happen?)
 cat logbook.adif |./adif2json |jq '[.[] | select((has("LOTWRDATE")) and (.COUNTRY=="UNITED STATES OF AMERICA") and (has("STATE")|not)) ] '
+
+
+### List POTA QSOs
+cat logbook.adif |./adif2json | jq '[ .[] | select(has("NOTES") and (.NOTES | contains("POTA"))) ]'
+
+
+### List QSOs with a call
+cat logbook.adif |./adif2json | jq '[ .[] | select(.CALL == "W1AW")]'
+
+
+### List confirmed grid squares
+cat logbook.adif |./adif2json |jq '[.[] | select(has("LOTWRDATE")) | .GRIDSQUARE[0:4]] | unique'
+
