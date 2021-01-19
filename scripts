@@ -8,7 +8,12 @@
 cat logbook.adif |\
 	./adif2json |\
 	jq '[ .[] | if ((.QSO_DATE < "20201224") and (has("LOTWSDATE")|not)) then .LOTWSDATE="20201224" | . else . end | if (has("LOTWSDATE")|not) then .LOTWSDATE=.QSO_DATE | . else . end]'  |\
-	./json2adif
+	./json2adif > fix_lotwsdate.adif
+
+### Fix United States, USA => UNITED STATES OD AMERICA
+cat fix_lotwsdate.adif |\
+	./adif2json |\
+	jq '[.[] | if (.COUNTRY == "USA" or .COUNTRY=="United States") then .COUNTRY="UNITED STATES OF AMERICA" | . else . end]' | ./json2adif > fix_usa.adif
 
 
 
@@ -20,13 +25,43 @@ cat logbook.adif |\
 	./adif2json |\
 	jq '[.[] | .COUNTRY] | unique'
 
+### ^ Same but case insensitive
+	jq '[.[] | select(.COUNTRY) | .COUNTRY | ascii_upcase ] | unique'
+
+
 ### Query list of confirmed countries:
 cat logbook.adif |\
 	./adif2json |\
 	jq '[.[] | select(has("LOTWRDATE")) | .COUNTRY] | unique'
 
-### Query list of unconfirmed countries:
+
+### List worked countries, number of QSOs and number of confirmed QSOs
 cat logbook.adif |\
 	./adif2json |\
-	jq '[.[] | select(has("LOTWRDATE")|not) | .COUNTRY] | unique'
+	jq '[.[] | if (.COUNTRY) then .COUNTRY |= ascii_upcase else . end] | group_by(.COUNTRY) | .[] | { country: .[0].COUNTRY, qsos: . | length, confirmed: [select(.[] | has("LOTWRDATE"))] | length}'
 
+
+### List worked countries with no QSLs
+cat logbook.adif |\
+	./adif2json |\
+	jq 'group_by(.COUNTRY) | .[] | { country: .[0].COUNTRY, qsos: . | length, confirmed: [select(.[] | has("LOTWRDATE"))] | length} | select(.confirmed == 0) | .country'
+
+
+### List worked countries with no QSLs (case insensitive)
+cat logbook.adif |\
+	./adif2json |\
+	jq '[.[] | if (.COUNTRY) then .COUNTRY |= ascii_upcase else . end] | group_by(.COUNTRY) | .[] | { country: .[0].COUNTRY, qsos: . | length, confirmed: [select(.[] | has("LOTWRDATE"))] | length} | select(.confirmed == 0) | .country'
+
+
+
+### List worked States, number of logged QSOs, number of QSLs
+cat logbook.adif |./adif2json |jq '[.[] | select(.COUNTRY=="UNITED STATES OF AMERICA")] | group_by(.STATE) | .[] | { state: .[0].STATE, qsos: . | length, confirmed: [select(.[] | has("LOTWRDATE"))] | length}'
+
+
+
+### List of callsigns with a QSO without a country set
+cat fix_usa.adif | ./adif2json | jq '[.[] | select(has("COUNTRY")|not) | .CALL | ascii_upcase] | unique'
+
+
+### List confirmed QSOs without a state (How did this happen?)
+cat logbook.adif |./adif2json |jq '[.[] | select((has("LOTWRDATE")) and (.COUNTRY=="UNITED STATES OF AMERICA") and (has("STATE")|not)) ] '
