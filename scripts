@@ -1,0 +1,32 @@
+# -*- sh -*-
+# Examples of using adif2json with jq to query/update logfiles.
+
+### Fix LOTWSDATE
+# If unset
+#	if QSO_DATE < 2020-12-24 set to 2020-12-24
+#   else set to QSO_DATE
+cat logbook.adif |\
+	./adif2json |\
+	jq '[ .[] | if ((.QSO_DATE < "20201224") and (has("LOTWSDATE")|not)) then .LOTWSDATE="20201224" | . else . end | if (has("LOTWSDATE")|not) then .LOTWSDATE=.QSO_DATE | . else . end]'  |\
+	./json2adif
+
+
+
+### Query list of confirmed QSOs
+cat logbook.adif |./adif2json |jq '[.[] | select(has("LOTWRDATE"))] | sort'
+
+### Query list of worked countries:
+cat logbook.adif |\
+	./adif2json |\
+	jq '[.[] | .COUNTRY] | unique'
+
+### Query list of confirmed countries:
+cat logbook.adif |\
+	./adif2json |\
+	jq '[.[] | select(has("LOTWRDATE")) | .COUNTRY] | unique'
+
+### Query list of unconfirmed countries:
+cat logbook.adif |\
+	./adif2json |\
+	jq '[.[] | select(has("LOTWRDATE")|not) | .COUNTRY] | unique'
+
